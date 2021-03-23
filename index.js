@@ -1,6 +1,7 @@
 const fs = require('fs');
 const readline = require('readline');
 const {google} = require('googleapis');
+const math = require('mathjs')
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
@@ -13,7 +14,7 @@ const TOKEN_PATH = 'token.json';
 fs.readFile('credentials.json', (err, content) => {
   if (err) return console.log('Error loading client secret file:', err);
   // Authorize a client with credentials, then call the Google Sheets API.
-  authorize(JSON.parse(content), listMajors);
+  authorize(JSON.parse(content), getSheetData);
 });
 
 /**
@@ -71,21 +72,37 @@ function getNewToken(oAuth2Client, callback) {
  * @see https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
  * @param {google.auth.OAuth2} auth The authenticated Google OAuth client.
  */
-function listMajors(auth) {
+function getSheetData(auth) {
   const sheets = google.sheets({version: 'v4', auth});
   sheets.spreadsheets.values.get({
-    spreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
-    range: 'Class Data!A2:E',
+    spreadsheetId: '1AzgFShhZx_QI4oqz5oc0shHQVig6_sP552iqI8uSSEM',
+    range: 'Luxuries(00)!a1:W',
   }, (err, res) => {
     if (err) return console.log('The API returned an error: ' + err);
     const rows = res.data.values;
-    console.log(rows)
-    if (rows.length) {
-      console.log('Name, Major:');
-      // Print columns A and E, which correspond to indices 0 and 4.
-      rows.map((row) => {
-        console.log(`${row[0]}, ${row[4]}`);
-      });
+    if (rows.length) { 
+      const columnHeads = rows[0];
+      console.log('column heads are:')
+      console.log(columnHeads)
+
+      const transactionsRows = rows.slice(4)
+
+      const transactions = transactionsRows.reduce((transactionsAccumulator, currentRow) => {
+        const date = currentRow[0]
+        currentRow/*.slice(1)*/.forEach((cell, index) => {
+          if (math.hasNumericValue(cell)) {
+            transactionsAccumulator.push({
+              date,
+              amount:Number(cell),
+              type:columnHeads[index]
+            })
+          } 
+        })
+        return transactionsAccumulator
+      },[])
+      console.log("transactions are:")
+      console.log(transactions)
+
     } else {
       console.log('No data found.');
     }
